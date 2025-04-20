@@ -2,20 +2,28 @@
 from dataGenerator import generate_data
 from simulation  import run_simulation
 import matplotlib
-matplotlib.use('TkAgg')   # oppure 'Qt5Agg' se hai Qt installato
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-
+#TODO: riguarda i funzionamenti di centralized perche rialloca ogni slot ma deve farlo solo ogni epoca;
 def main():
     # 1) Genera lo stato iniziale
     init_data = generate_data()
 
     # 2) Esegui la simulazione: 1000 slot, epoca ogni 50 slot
     history = run_simulation(
-        num_slots=100,
+        num_slots=1000,
         slots_per_epoch=1,
         init_data=init_data
     )
+
+
+    #voglio la stampa di quante mu app e lamba app c'erano alll'inizio e quante alla fine
+    print(f"Numero di μ-app iniziali: {history['num_mu'][0]}")
+    print(f"Numero di λ-app iniziali: {history['num_lambda'][0]}")
+    print(f"Numero di μ-app finali: {history['num_mu'][-1]}")
+    print(f"Numero di λ-app finali: {history['num_lambda'][-1]}")
+
 
     # 3) Disegna i grafici
     plt.figure(figsize=(8,4))
