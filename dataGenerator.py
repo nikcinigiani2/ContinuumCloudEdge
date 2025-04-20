@@ -48,6 +48,7 @@ def generate_data():
         'app_cost': app_cost,
         'totAppl': totAppl,
         'capacity_per_edge': capacity_per_edge.tolist(),
+        'service_rate_edge': service_rate_edge.tolist(),
         'num_edge': edge,
         'numAppl': numAppl,
         'mu_appl': mu_appl,
