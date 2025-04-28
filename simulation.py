@@ -1,7 +1,4 @@
-# simulation.py
-
 import random
-import numpy as np
 from allocation import centralized_allocate, greedy_allocate
 from dataGenerator import generate_data
 
@@ -47,12 +44,8 @@ def recompute_central_cost(app_cost, partsC):
     return total
 
 def run_simulation(num_slots, slots_per_epoch, init_data):
-    """
-    num_slots: numero totale di slot temporali
-    slots_per_epoch: lunghezza di un’epoca (in slot)
-    init_data: dict da generate_data()
-    """
-    # --- inizializzazione stato ---
+
+    #  inizializzazione stato
     data = init_data
     app_cost          = [row.tolist() for row in data['app_cost']]
     totAppl           = list(data['totAppl'])
@@ -73,7 +66,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
         capacity_per_edge, service_rate_edge,
         num_edge, mu_appl
     )
-    # assicuriamoci che partsC sia lista di liste
+    # partsC è una lista di liste
     partsC = [list(row) for row in partsC]
 
     # storico anche degli eventi per epoca
@@ -99,7 +92,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
         x2 = random.random()
         total  = mu_appl + lam_appl
 
-        # --- MORTE PURA ---
+        # MORTE
         if x1 < q and total > 0:
             idx = random.randrange(total)
             old_tot  = totAppl[idx]
@@ -112,7 +105,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
             else:
                 deaths_mu += 1
 
-        # --- NASCITA PURA ---
+        # NASCITA
         elif x1 < q + p:
             if x2 < 0.5:
                 handle_birth_lambda(app_cost, totAppl, partsC)
@@ -123,14 +116,14 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
                 mu_appl  += 1
                 births_mu += 1
 
-        # --- MIGRAZIONE ---
+        #MIGRAZIONE
         elif x1 < q + p + r and total > 0:
             migrations += 1
             idx = random.randrange(total)
-            # morte interna
+            # morte
             mu_appl = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
             lam_appl = len(totAppl) - mu_appl
-            # nascita inversa (non incrementiamo births/deaths)
+            # nascita  (no incremento births/deaths)
             if idx < lam_appl:
                 handle_birth_mu(app_cost, totAppl, partsC)
                 mu_appl += 1
@@ -138,7 +131,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
                 handle_birth_lambda(app_cost, totAppl, partsC)
                 lam_appl += 1
 
-        # --- greedy immediato ---
+        #  greedy
         _, _, costG = greedy_allocate(
             app_cost, totAppl,
             capacity_per_edge.copy(),
@@ -146,7 +139,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
             num_edge, mu_appl
         )
 
-        # --- ricalcolo centralized inizio epoca ---
+        # ricalcolo centralized inizio epoca
         if slot % slots_per_epoch == 0:
             ep = slot // slots_per_epoch
             print(f"[EPOCA {ep}] slot={slot} → full centralized allocation", flush=True)
@@ -173,7 +166,7 @@ def run_simulation(num_slots, slots_per_epoch, init_data):
             )
             partsC = [list(row) for row in partsC]  # di nuovo lista di liste
 
-        # --- ricalcolo ESATTO costo centralizzato da partsC ---
+        #  ricalcolo ESATTO costo centralizzato da partsC
         else:
             current_c_cost = recompute_central_cost(app_cost, partsC)
 

@@ -1,14 +1,9 @@
-
-
 import numpy as np
 from centralizedAllocation import centralized_allocation, allocate_lambda    # import di allocate_lambda
 from iterativeAllocation import matchingAlg
 
-def centralized_allocate(app_cost, totAppl, capacity_per_edge,
-                         service_rate_edge, num_edge, mu_appl):
-    """
-    Wrapper su centralized_allocation:
-      - converte app_cost in np.array
+def centralized_allocate(app_cost, totAppl, capacity_per_edge,service_rate_edge, num_edge, mu_appl):
+    """centralized_allocation: converte app_cost in np.array
       - se mu_appl>0 usa Hungarian+min-cost-flow
       - se mu_appl==0 chiama solo allocate_lambda
     """
@@ -32,7 +27,7 @@ def centralized_allocate(app_cost, totAppl, capacity_per_edge,
 def greedy_allocate(app_cost, totAppl, capacity_per_edge,
                     service_rate_edge, num_edge, mu_appl):
     """
-    Wrapper su matchingAlg:
+    matchingAlg:
       - converte app_cost in np.array per supportare l’indicizzazione
       - calcola allocazione greedy + costo
     """
