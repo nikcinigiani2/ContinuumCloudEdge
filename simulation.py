@@ -1,179 +1,174 @@
 import random
+import math
+import time
+import copy
+
 from allocation import centralized_allocate, greedy_allocate
 from dataGenerator import generate_data
 
-# Parametri di processo (fissi)
-nm = 6
-p  = 0.05
-r  = nm * p
+# Parametri fissi
+nm = 6    # numero di nodi edge
+p  = 0.05 # probabilità base
 
 def handle_birth_lambda(app_cost, totAppl, partsC):
     d = generate_data()
-    # aggiungi i nuovi costi e domanda
-    app_cost.append(d['app_cost'][-1].tolist())
-    totAppl.append(int(d['totAppl'][-1]))
-    # crea nuova riga partsC di lunghezza corretta (edge+1)
-    num_cols = len(partsC[0])
+    new_cost = d['app_cost'][-1].tolist()
+    app_cost.append(new_cost)
+    new_tot = int(d['totAppl'][-1])
+    totAppl.append(new_tot)
+    num_cols = len(new_cost)
     new_row  = [0] * num_cols
-    new_row[-1] = totAppl[-1]   # tutta sul cloud
+    new_row[-1] = new_tot
     partsC.append(new_row)
 
 def handle_birth_mu(app_cost, totAppl, partsC):
     d = generate_data()
-    app_cost.append(d['app_cost'][0].tolist())
+    new_cost = d['app_cost'][0].tolist()
+    app_cost.append(new_cost)
     totAppl.append(1)
-    num_cols = len(partsC[0])
+    num_cols = len(new_cost)
     new_row  = [0] * num_cols
-    new_row[-1] = 1             # tutta sul cloud
+    new_row[-1] = 1
     partsC.append(new_row)
 
 def handle_death(idx, app_cost, totAppl, mu_appl, partsC):
-    del app_cost[idx]
-    del totAppl[idx]
-    del partsC[idx]
-    if idx < mu_appl:
-        mu_appl -= 1
+    total = len(app_cost)
+    if 0 <= idx < total:
+        del app_cost[idx]
+        del totAppl[idx]
+        if 0 <= idx < len(partsC):
+            del partsC[idx]
+        if idx < mu_appl:
+            mu_appl -= 1
     return mu_appl
 
-def recompute_central_cost(app_cost, partsC):
-    total = 0
-    for i, part in enumerate(partsC):
-        cost_row = app_cost[i]
-        for j, qty in enumerate(part):
-            total += qty * cost_row[j]
-    return total
+def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
+    """
+    init_data: dict da generate_data()
+    ne: numero di eventi per epoca
+    regime: 'scarcity' o 'abundance'
+    do_greedy: se True aggiorna greedy ogni epoca
+    """
+    # --- Inizializzazione ---
+    app_cost          = [row.tolist() for row in init_data['app_cost']]
+    totAppl           = list(init_data['totAppl'])
+    service_rate_edge = init_data['service_rate_edge']
+    num_edge          = init_data['num_edge']
+    mu_appl           = init_data['mu_appl']
 
-def run_simulation(num_slots, slots_per_epoch, init_data):
+    # capacity per regime
+    containers = 5 if regime == 'scarcity' else 10
+    capacity_per_edge = [containers * r for r in service_rate_edge]
 
-    #  inizializzazione stato
-    data = init_data
-    app_cost          = [row.tolist() for row in data['app_cost']]
-    totAppl           = list(data['totAppl'])
-    capacity_per_edge = data['capacity_per_edge']
-    service_rate_edge = data['service_rate_edge']
-    num_edge          = data['num_edge']
-    mu_appl           = data['mu_appl']
-    lam_appl          = len(totAppl) - mu_appl
+    # calcolo timeHorizon e total_epochs
+    lam_appl     = len(totAppl) - mu_appl
+    #timeHorizon  = math.ceil(5*(lam_appl + mu_appl) / p) * ne
+    timeHorizon = 100
+    total_epochs = math.ceil(timeHorizon / ne)
+    print(f">>> Simulazione: timeHorizon={timeHorizon} eventi, ne={ne} ⇒ total_epochs={total_epochs}")
 
-    # tasso di morte (q) fisso per tutta l’epoca
-    q = p * (1 + lam_appl + mu_appl) / (lam_appl + mu_appl)
-
-    # --- epoca 0: full centralized ---
-    print(f"[EPOCA 0] slot=0 → full centralized allocation", flush=True)
-    print(f"  nascite: μ=0 λ=0, morti: μ=0 λ=0, migrazioni=0\n", flush=True)
-    current_c_cost, allocC, partsC = centralized_allocate(
+    # Epoca 0 (full centralized)
+    _, _, partsC = centralized_allocate(
         app_cost, totAppl,
         capacity_per_edge, service_rate_edge,
         num_edge, mu_appl
     )
-    # partsC è una lista di liste
-    partsC = [list(row) for row in partsC]
+    partsC = [list(r) for r in partsC]
 
-    # storico anche degli eventi per epoca
+    # Storico
     history = {
-        'central_cost':  [current_c_cost],
-        'greedy_cost':   [],
-        'num_mu':        [mu_appl],
-        'num_lambda':    [lam_appl],
-        'births_mu':     [0],
-        'births_lambda': [0],
-        'deaths_mu':     [0],
-        'deaths_lambda': [0],
-        'migrations':    [0],
+        'ne': [], 'alloc_events': [],
+        'births': [], 'deaths': [], 'migrations': [],
+        'relocations': [], 'central_cost': [], 'greedy_cost': []
     }
 
-    # contatori per l’epoca corrente
-    births_mu = births_lambda = 0
-    deaths_mu = deaths_lambda = migrations = 0
+    # Contatori
+    alloc_events = births = deaths = migrations = 0
+    event_count  = 0
+    epoch_num    = 0
 
-    for slot in range(1, num_slots):
-        # estrae evento con probabilità q, p, r, 1−(q+p+r)
-        x1 = random.random()
-        x2 = random.random()
-        total  = mu_appl + lam_appl
+    # --- Loop sugli eventi ---
+    while event_count < timeHorizon:
+        x1, x2 = random.random(), random.random()
+        lam_appl = len(totAppl) - mu_appl
+        total_apps = len(totAppl)
+        q = (p * (1 + lam_appl + mu_appl) /
+             (lam_appl + mu_appl)) if (lam_appl + mu_appl) > 0 else 0
 
-        # MORTE
-        if x1 < q and total > 0:
-            idx = random.randrange(total)
-            old_tot  = totAppl[idx]
-            old_cost = app_cost[idx][num_edge]
+        # MORTE pura
+        if x1 < q and total_apps > 0:
+            idx = random.randrange(total_apps)
             mu_appl = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
-            lam_appl = len(totAppl) - mu_appl
-            # conto morti
-            if idx < lam_appl:
-                deaths_lambda += 1
-            else:
-                deaths_mu += 1
+            deaths += 1
+            alloc_events += 1
 
-        # NASCITA
+        # NASCITA pura
         elif x1 < q + p:
             if x2 < 0.5:
                 handle_birth_lambda(app_cost, totAppl, partsC)
-                lam_appl += 1
-                births_lambda += 1
             else:
                 handle_birth_mu(app_cost, totAppl, partsC)
-                mu_appl  += 1
-                births_mu += 1
+                mu_appl += 1
+            births += 1
+            alloc_events += 1
 
-        #MIGRAZIONE
-        elif x1 < q + p + r and total > 0:
-            migrations += 1
-            idx = random.randrange(total)
-            # morte
+        # MIGRAZIONE
+        elif x1 < q + p + (nm * p) and total_apps > 0:
+            idx = random.randrange(total_apps)
             mu_appl = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
-            lam_appl = len(totAppl) - mu_appl
-            # nascita  (no incremento births/deaths)
-            if idx < lam_appl:
+            # revive inverso
+            if idx < (len(totAppl) - mu_appl):
                 handle_birth_mu(app_cost, totAppl, partsC)
                 mu_appl += 1
             else:
                 handle_birth_lambda(app_cost, totAppl, partsC)
-                lam_appl += 1
+            migrations += 1
+            alloc_events += 1
 
-        #  greedy
-        _, _, costG = greedy_allocate(
-            app_cost, totAppl,
-            capacity_per_edge.copy(),
-            service_rate_edge.copy(),
-            num_edge, mu_appl
-        )
+        event_count += 1
 
-        # ricalcolo centralized inizio epoca
-        if slot % slots_per_epoch == 0:
-            ep = slot // slots_per_epoch
-            print(f"[EPOCA {ep}] slot={slot} → full centralized allocation", flush=True)
-            print(f"  nascite: μ={births_mu} λ={births_lambda}, "
-                  f"morti: μ={deaths_mu} λ={deaths_lambda}, "
-                  f"migrazioni={migrations}\n", flush=True)
-
-            # registro contatori per questa epoca
-            history['births_mu'].append(births_mu)
-            history['births_lambda'].append(births_lambda)
-            history['deaths_mu'].append(deaths_mu)
-            history['deaths_lambda'].append(deaths_lambda)
+        # Epoca basata su ne eventi
+        if event_count % ne == 0:
+            epoch_num += 1
+            pct = epoch_num / total_epochs * 100
+            print(f"[Epoch {epoch_num}/{total_epochs} – {pct:.1f}%] "
+                  f"events={event_count}/{timeHorizon} mu={mu_appl} apps={len(app_cost)}")
+            history['ne'].append(event_count)
+            history['alloc_events'].append(alloc_events)
+            history['births'].append(births)
+            history['deaths'].append(deaths)
             history['migrations'].append(migrations)
 
-            # reset contatori
-            births_mu = births_lambda = 0
-            deaths_mu = deaths_lambda = migrations = 0
+            # reset epoca
+            births = deaths = migrations = 0
 
-            # full centralized
-            current_c_cost, allocC, partsC = centralized_allocate(
+            # CENTRALIZED con timing
+            print(f"[Epoch {epoch_num}] → Inizio centralized_allocate")
+            t0 = time.time()
+            c_cost, _, new_parts = centralized_allocate(
                 app_cost, totAppl,
                 capacity_per_edge, service_rate_edge,
                 num_edge, mu_appl
             )
-            partsC = [list(row) for row in partsC]  # di nuovo lista di liste
+            dt = time.time() - t0
+            print(f"[Epoch {epoch_num}] ← Fine centralized in {dt:.2f}s; costo={c_cost}")
 
-        #  ricalcolo ESATTO costo centralizzato da partsC
-        else:
-            current_c_cost = recompute_central_cost(app_cost, partsC)
+            # conta rilocazioni
+            new_parts = [list(r) for r in new_parts]
+            reloc = sum(1 for i in range(len(new_parts))
+                        if partsC[i] != new_parts[i])
+            history['relocations'].append(reloc)
+            history['central_cost'].append(c_cost)
+            partsC = new_parts
 
-        # aggiorno storico costi e numeri
-        history['central_cost'].append(current_c_cost)
-        history['greedy_cost'].append(costG)
-        history['num_mu'].append(mu_appl)
-        history['num_lambda'].append(lam_appl)
+            # GREEDY opzionale
+            if do_greedy:
+                _, _, g_cost = greedy_allocate(
+                    app_cost, totAppl,
+                    capacity_per_edge.copy(),
+                    service_rate_edge.copy(),
+                    num_edge, mu_appl
+                )
+                history['greedy_cost'].append(g_cost)
 
     return history
