@@ -84,7 +84,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
         'relocations':    [],
         'central_cost':   [],
         'greedy_cost':    [],
-        # in fondo aggiungeremo i totali
+        'num_apps': [len(totAppl)],
     }
 
     # --- Contatori GLOBALI (su tutta la simulazione) ---
@@ -152,6 +152,9 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
             history['births'].append(births)
             history['deaths'].append(deaths)
             history['migrations'].append(migrations)
+
+            # numero di applicazioni attive **alla fine** di questa epoca
+            history['num_apps'].append(len(totAppl))
 
             # Reset contatori epoca
             births = deaths = migrations = 0

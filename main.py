@@ -80,7 +80,16 @@ def main():
             plt.ylabel('PDF')
             plt.grid(True)
 
-
+        # —— GRAFICO 4: ne vs numero di applicazioni attive ——
+    plt.figure()
+    plt.plot(ne_values,
+             [h['num_apps'][-1] for h in histories],
+             marker='s',
+             label='Apps attive')
+    plt.title(f"# Apps attive vs ne – {regime}, {label_mode[do_greedy]}")
+    plt.xlabel('ne (eventi per epoca)')
+    plt.ylabel('Numero di app attive')
+    plt.grid(True)
 
     # mostra tutte le 12 figure
     plt.show()
