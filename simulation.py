@@ -49,7 +49,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
     regime: 'scarcity' o 'abundance'
     do_greedy: se True aggiorna greedy ogni epoca
     """
-    # --- Inizializzazione ---
+    # --- Inizializzazione stato base ---
     app_cost          = [row.tolist() for row in init_data['app_cost']]
     totAppl           = list(init_data['totAppl'])
     service_rate_edge = init_data['service_rate_edge']
@@ -62,12 +62,11 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
 
     # calcolo timeHorizon e total_epochs
     lam_appl     = len(totAppl) - mu_appl
-    #timeHorizon  = math.ceil(5*(lam_appl + mu_appl) / p) * ne
-    timeHorizon = 100
+    timeHorizon  = math.ceil(2*(lam_appl + mu_appl) / p) * ne
     total_epochs = math.ceil(timeHorizon / ne)
     print(f">>> Simulazione: timeHorizon={timeHorizon} eventi, ne={ne} ⇒ total_epochs={total_epochs}")
 
-    # Epoca 0 (full centralized)
+    # Epoca 0 (full centralized) — inizializziamo partsC
     _, _, partsC = centralized_allocate(
         app_cost, totAppl,
         capacity_per_edge, service_rate_edge,
@@ -75,34 +74,46 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
     )
     partsC = [list(r) for r in partsC]
 
-    # Storico
+    # --- Serie storiche per ciascuna epoca ---
     history = {
-        'ne': [], 'alloc_events': [],
-        'births': [], 'deaths': [], 'migrations': [],
-        'relocations': [], 'central_cost': [], 'greedy_cost': []
+        'ne':             [],   # eventi cumulati
+        'alloc_events':   [],   # numero di allocazioni (nascite/dea/migraz)
+        'births':         [],
+        'deaths':         [],
+        'migrations':     [],
+        'relocations':    [],
+        'central_cost':   [],
+        'greedy_cost':    [],
+        # in fondo aggiungeremo i totali
     }
 
-    # Contatori
+    # --- Contatori GLOBALI (su tutta la simulazione) ---
+    tot_births      = 0
+    tot_deaths      = 0
+    tot_migrations  = 0
+    tot_relocations = 0
+
+    # --- Contatori per epoca ---
     alloc_events = births = deaths = migrations = 0
     event_count  = 0
     epoch_num    = 0
 
     # --- Loop sugli eventi ---
     while event_count < timeHorizon:
-        x1, x2 = random.random(), random.random()
-        lam_appl = len(totAppl) - mu_appl
-        total_apps = len(totAppl)
+        x1, x2      = random.random(), random.random()
+        lam_appl    = len(totAppl) - mu_appl
+        total_apps  = len(totAppl)
         q = (p * (1 + lam_appl + mu_appl) /
              (lam_appl + mu_appl)) if (lam_appl + mu_appl) > 0 else 0
 
-        # MORTE pura
+        # ------ MORTE pura ------
         if x1 < q and total_apps > 0:
-            idx = random.randrange(total_apps)
-            mu_appl = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
-            deaths += 1
+            idx      = random.randrange(total_apps)
+            mu_appl  = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
+            deaths  += 1
+            tot_deaths += 1         # <<<<<<<<<< Aggiorno il contatore globale
             alloc_events += 1
-
-        # NASCITA pura
+        # ------ NASCITA pura ------
         elif x1 < q + p:
             if x2 < 0.5:
                 handle_birth_lambda(app_cost, totAppl, partsC)
@@ -110,9 +121,9 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
                 handle_birth_mu(app_cost, totAppl, partsC)
                 mu_appl += 1
             births += 1
+            tot_births += 1         # <<<<<<<<<< Aggiorno il contatore globale
             alloc_events += 1
-
-        # MIGRAZIONE
+        # ------ MIGRAZIONE ------
         elif x1 < q + p + (nm * p) and total_apps > 0:
             idx = random.randrange(total_apps)
             mu_appl = handle_death(idx, app_cost, totAppl, mu_appl, partsC)
@@ -123,26 +134,29 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
             else:
                 handle_birth_lambda(app_cost, totAppl, partsC)
             migrations += 1
+            tot_migrations += 1     # <<<<<<<<<< Aggiorno il contatore globale
             alloc_events += 1
 
         event_count += 1
 
-        # Epoca basata su ne eventi
+        # ------ Epoca basata su ne eventi ------
         if event_count % ne == 0:
             epoch_num += 1
             pct = epoch_num / total_epochs * 100
             print(f"[Epoch {epoch_num}/{total_epochs} – {pct:.1f}%] "
                   f"events={event_count}/{timeHorizon} mu={mu_appl} apps={len(app_cost)}")
+
+            # Registro le serie storiche
             history['ne'].append(event_count)
             history['alloc_events'].append(alloc_events)
             history['births'].append(births)
             history['deaths'].append(deaths)
             history['migrations'].append(migrations)
 
-            # reset epoca
+            # Reset contatori epoca
             births = deaths = migrations = 0
 
-            # CENTRALIZED con timing
+            # ------ Ricalcolo CENTRALIZED ------
             print(f"[Epoch {epoch_num}] → Inizio centralized_allocate")
             t0 = time.time()
             c_cost, _, new_parts = centralized_allocate(
@@ -153,15 +167,18 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
             dt = time.time() - t0
             print(f"[Epoch {epoch_num}] ← Fine centralized in {dt:.2f}s; costo={c_cost}")
 
-            # conta rilocazioni
+            # Conta quante allocazioni sono cambiate
             new_parts = [list(r) for r in new_parts]
-            reloc = sum(1 for i in range(len(new_parts))
+            reloc = sum(1
+                        for i in range(len(new_parts))
                         if partsC[i] != new_parts[i])
             history['relocations'].append(reloc)
+            tot_relocations += reloc   # <<<<<<<<<< Aggiorno il contatore globale
+
             history['central_cost'].append(c_cost)
             partsC = new_parts
 
-            # GREEDY opzionale
+            # ------ Ricalcolo GREEDY (opzionale) ------
             if do_greedy:
                 _, _, g_cost = greedy_allocate(
                     app_cost, totAppl,
@@ -171,4 +188,11 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
                 )
                 history['greedy_cost'].append(g_cost)
 
+    # ------ Alla fine, aggiungo i totali al history e restituisco ------
+    history['total_births']      = tot_births
+    history['total_deaths']      = tot_deaths
+    history['total_migrations']  = tot_migrations
+    history['total_relocations'] = tot_relocations
+
     return history
+
