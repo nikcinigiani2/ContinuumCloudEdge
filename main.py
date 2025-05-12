@@ -1,102 +1,95 @@
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
 
-#TODO: ricontrollare generazione app per ne, ricontrollare grafici e ricalcolo algoritmi
+#TODO: ricontrollare grafico app attive, ricontrollare troppi costi=0
 def main():
     regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
-    modes     = [False, True]    # False = solo centralized, True = centralized+greedy
-
-    # titolo per la modalità
-    label_mode = {False: 'Centralized only', True: 'Centralized+Matching'}
-
-    total_runs = len(regimes) * len(modes) * len(ne_values)
-    completed = 0
+    modes     = [False, True]    # False = matching OFF, True = matching ON
 
     for regime in regimes:
-        for do_greedy in modes:
+        for do_matching in modes:
             histories = []
-            # Simula per ogni ne
+            print(f"\n=== Regime={regime}, matching={'ON' if do_matching else 'OFF'} ===")
             for ne in ne_values:
+                # per riproducibilità: stessa semina Rand? (opzionale)
                 init_data = generate_data()
-
-                print(f"[Run {completed + 1}/{total_runs}] "
-                      f"regime={regime}, matching={'on' if do_greedy else 'off'}, ne={ne}")
-
                 h = run_simulation_event_based(
                     init_data,
                     ne,
                     regime,
-                    do_greedy=do_greedy
+                    do_greedy=do_matching
                 )
                 histories.append(h)
+                print(f"  ne={ne}  → centralized={h['central_cost'][-1]:.1f}  greedy={h['greedy_cost'][-1]:.1f}")
 
-                completed += 1
-                pct = completed / total_runs * 100
-                print(f"[Overall Progress] {completed}/{total_runs} → {pct:.1f}%\n")
-
-
-
-            # –– A) Grafico 1: ne vs alloc_changes  ––
+            # 1) ne vs numero di riallocazioni
             plt.figure()
             plt.plot(ne_values,
                      [h['relocations'][-1] for h in histories],
-                     marker='o')
-            plt.title(f" Allocazzioni Totali – {regime}, {label_mode[do_greedy]}")
+                     marker='o', label='Riallocazioni')
+            plt.title(f"Riallocazioni vs ne – {regime}, matching={'ON' if do_matching else 'OFF'}")
             plt.xlabel('ne (eventi per epoca)')
             plt.ylabel('Numero riallocazioni')
             plt.grid(True)
 
-            # –– B) Grafico 2: ne vs costo totale centralizzato (e greedy se richiesto) ––
+            # 2) ne vs costo finale (centralized + matching)
             plt.figure()
             plt.plot(ne_values,
                      [h['central_cost'][-1] for h in histories],
-                     marker='o',
-                     label='Centralized')
-            if do_greedy:
-                plt.plot(ne_values,
-                         [h['greedy_cost'][-1] for h in histories],
-                         marker='x',
-                         label='Greedy')
-                plt.legend()
-            plt.title(f"Costo finale – {regime}, {label_mode[do_greedy]}")
+                     marker='o', label='Centralized')
+            plt.plot(ne_values,
+                     [h['greedy_cost'][-1] for h in histories],
+                     marker='x', label='Matching')
+            plt.title(f"Costo finale vs ne – {regime}, matching={'ON' if do_matching else 'OFF'}")
             plt.xlabel('ne (eventi per epoca)')
             plt.ylabel('Costo')
+            plt.legend()
             plt.grid(True)
 
-            # –– C) Grafico 3: distribuzione costi nel tempo ––
+            # 3) istogramma distribuzione costi (tutte le epoche, entrambi)
             plt.figure()
             all_costs = []
             for h in histories:
                 all_costs.extend(h['central_cost'])
-                if do_greedy:
-                    all_costs.extend(h['greedy_cost'])
+                all_costs.extend(h['greedy_cost'])
             plt.hist(all_costs, bins=30, density=True, alpha=0.7)
-            plt.title(f"Distribuzione costi – {regime}, {label_mode[do_greedy]}")
+            plt.title(f"Distribuzione costi – {regime}, matching={'ON' if do_matching else 'OFF'}")
             plt.xlabel('Costo')
             plt.ylabel('PDF')
             plt.grid(True)
 
 
 
-    # mostra tutte le 12 figure
+    # stampa riepilogo finale (sull’ultima modalità/regime)
+    last = histories[-1]
+    print("\n--- Totali simulazione ---")
+    print(f"Nascite:      {last['total_births']}")
+    print(f"Morti:        {last['total_deaths']}")
+    print(f"Migrazioni:   {last['total_migrations']}")
+    print(f"Riallocazioni:{last['total_relocations']}")
+
+    # Andamento numero di app attive nel tempo (per ciascuna epoca)
+    plt.figure()
+    for idx, h in enumerate(histories):
+        # h['ne']      = lista di eventi cumulati ad ogni epoca
+        # h['num_apps']= # di app attive a fine epoca
+        plt.plot(h['ne'], h['num_apps'],
+                 marker='.',
+                 label=f'ne = {ne_values[idx]}')
+    plt.title(f"Applicazioni attive nel tempo – {regime}, matching={'ON' if do_matching else 'OFF'}")
+    plt.xlabel('Eventi cumulati')
+    plt.ylabel('Numero di applicazioni attive')
+    plt.legend(ncol=2, fontsize='small')
+    plt.grid(True)
+
+    # mostra le 12 figure (2 regimi × 2 modalità × 3 grafici) + 1 riepilogo app
     plt.show()
 
-    # –– Stampa i riepiloghi sul console ––
-    total_births = sum(h['births'][-1] for h in histories)
-    total_deaths = sum(h['deaths'][-1] for h in histories)
-    total_migrations = sum(h['migrations'][-1] for h in histories)
-    total_relocations = sum(h['relocations'][-1] for h in histories)
-
-    print(f"--- Regime={regime}, mode={label_mode[do_greedy]} ---")
-    print(f"Totale nascite:      {total_births}")
-    print(f"Totale morti:        {total_deaths}")
-    print(f"Totale migrazioni:   {total_migrations}")
-    print(f"Totale riallocazioni:{total_relocations}")
-    print()
 
 
 if __name__ == '__main__':
