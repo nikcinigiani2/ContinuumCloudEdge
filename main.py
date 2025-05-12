@@ -4,13 +4,17 @@ import matplotlib.pyplot as plt
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
 
+#TODO: ricontrollare generazione app per ne, ricontrollare grafici e ricalcolo algoritmi
 def main():
-    regimes   = ['scarcity', 'abundance']
+    regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
     modes     = [False, True]    # False = solo centralized, True = centralized+greedy
 
     # titolo per la modalità
-    label_mode = {False: 'Centralized only', True: 'Centralized+Greedy'}
+    label_mode = {False: 'Centralized only', True: 'Centralized+Matching'}
+
+    total_runs = len(regimes) * len(modes) * len(ne_values)
+    completed = 0
 
     for regime in regimes:
         for do_greedy in modes:
@@ -18,6 +22,9 @@ def main():
             # Simula per ogni ne
             for ne in ne_values:
                 init_data = generate_data()
+
+                print(f"[Run {completed + 1}/{total_runs}] "
+                      f"regime={regime}, matching={'on' if do_greedy else 'off'}, ne={ne}")
 
                 h = run_simulation_event_based(
                     init_data,
@@ -27,30 +34,23 @@ def main():
                 )
                 histories.append(h)
 
-            # –– A) Stampa i riepiloghi sul console ––
-            total_births = sum(h['births'][-1] for h in histories)
-            total_deaths = sum(h['deaths'][-1] for h in histories)
-            total_migrations = sum(h['migrations'][-1] for h in histories)
-            total_relocations = sum(h['relocations'][-1] for h in histories)
+                completed += 1
+                pct = completed / total_runs * 100
+                print(f"[Overall Progress] {completed}/{total_runs} → {pct:.1f}%\n")
 
-            print(f"--- Regime={regime}, mode={label_mode[do_greedy]} ---")
-            print(f"Totale nascite:      {total_births}")
-            print(f"Totale morti:        {total_deaths}")
-            print(f"Totale migrazioni:   {total_migrations}")
-            print(f"Totale riallocazioni:{total_relocations}")
-            print()
 
-            # –– B) Grafico 1: ne vs alloc_changes  ––
+
+            # –– A) Grafico 1: ne vs alloc_changes  ––
             plt.figure()
             plt.plot(ne_values,
                      [h['relocations'][-1] for h in histories],
                      marker='o')
-            plt.title(f"Alloc relocalizzazioni – {regime}, {label_mode[do_greedy]}")
+            plt.title(f" Allocazzioni Totali – {regime}, {label_mode[do_greedy]}")
             plt.xlabel('ne (eventi per epoca)')
             plt.ylabel('Numero riallocazioni')
             plt.grid(True)
 
-            # –– C) Grafico 2: ne vs costo totale centralizzato (e greedy se richiesto) ––
+            # –– B) Grafico 2: ne vs costo totale centralizzato (e greedy se richiesto) ––
             plt.figure()
             plt.plot(ne_values,
                      [h['central_cost'][-1] for h in histories],
@@ -67,7 +67,7 @@ def main():
             plt.ylabel('Costo')
             plt.grid(True)
 
-            # –– D) Grafico 3: distribuzione costi nel tempo ––
+            # –– C) Grafico 3: distribuzione costi nel tempo ––
             plt.figure()
             all_costs = []
             for h in histories:
@@ -80,19 +80,24 @@ def main():
             plt.ylabel('PDF')
             plt.grid(True)
 
-        # —— GRAFICO 4: ne vs numero di applicazioni attive ——
-    plt.figure()
-    plt.plot(ne_values,
-             [h['num_apps'][-1] for h in histories],
-             marker='s',
-             label='Apps attive')
-    plt.title(f"# Apps attive vs ne – {regime}, {label_mode[do_greedy]}")
-    plt.xlabel('ne (eventi per epoca)')
-    plt.ylabel('Numero di app attive')
-    plt.grid(True)
+
 
     # mostra tutte le 12 figure
     plt.show()
+
+    # –– Stampa i riepiloghi sul console ––
+    total_births = sum(h['births'][-1] for h in histories)
+    total_deaths = sum(h['deaths'][-1] for h in histories)
+    total_migrations = sum(h['migrations'][-1] for h in histories)
+    total_relocations = sum(h['relocations'][-1] for h in histories)
+
+    print(f"--- Regime={regime}, mode={label_mode[do_greedy]} ---")
+    print(f"Totale nascite:      {total_births}")
+    print(f"Totale morti:        {total_deaths}")
+    print(f"Totale migrazioni:   {total_migrations}")
+    print(f"Totale riallocazioni:{total_relocations}")
+    print()
+
 
 if __name__ == '__main__':
     main()

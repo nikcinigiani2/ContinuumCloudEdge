@@ -57,7 +57,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
     mu_appl           = init_data['mu_appl']
 
     # capacity per regime
-    containers = 5 if regime == 'scarcity' else 10
+    containers = 5 if regime == 'scarsità' else 10
     capacity_per_edge = [containers * r for r in service_rate_edge]
 
     # calcolo timeHorizon e total_epochs
@@ -143,8 +143,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
         if event_count % ne == 0:
             epoch_num += 1
             pct = epoch_num / total_epochs * 100
-            print(f"[Epoch {epoch_num}/{total_epochs} – {pct:.1f}%] "
-                  f"events={event_count}/{timeHorizon} mu={mu_appl} apps={len(app_cost)}")
+            #print(f"[Epoch {epoch_num}/{total_epochs} – {pct:.1f}%] "  f"events={event_count}/{timeHorizon} mu={mu_appl} apps={len(app_cost)}")
 
             # Registro le serie storiche
             history['ne'].append(event_count)
@@ -160,7 +159,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
             births = deaths = migrations = 0
 
             # ------ Ricalcolo CENTRALIZED ------
-            print(f"[Epoch {epoch_num}] → Inizio centralized_allocate")
+            #print(f"[Epoch {epoch_num}] → Inizio centralized_allocate")
             t0 = time.time()
             c_cost, _, new_parts = centralized_allocate(
                 app_cost, totAppl,
@@ -168,7 +167,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
                 num_edge, mu_appl
             )
             dt = time.time() - t0
-            print(f"[Epoch {epoch_num}] ← Fine centralized in {dt:.2f}s; costo={c_cost}")
+           # print(f"[Epoch {epoch_num}] ← Fine centralized in {dt:.2f}s; costo={c_cost}")
 
             # Conta quante allocazioni sono cambiate
             new_parts = [list(r) for r in new_parts]
