@@ -7,7 +7,6 @@ import numpy as np
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
 
-#TODO: ricontrollare grafico app attive, ricontrollare troppi costi=0
 def main():
     regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
@@ -111,7 +110,7 @@ def main():
     x = np.array(h_last['ne'])
     y = np.array(h_last['num_apps'])
 
-    # calcolo quanti epoch = un marker ogni 120 eventi
+    # calcolo quanti epoch = un marker ogni 3000 eventi
     # ne è il passo di eventi per epoca
     step = max(1, 3000 // ne)
 
