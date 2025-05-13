@@ -1,6 +1,8 @@
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
@@ -53,16 +55,45 @@ def main():
 
             # 3) istogramma distribuzione costi (tutte le epoche, entrambi)
             plt.figure()
-            all_costs = []
+
+            # Separiamo le due liste di costi
+            central_costs = []
+            matching_costs = []
+
             for h in histories:
-                all_costs.extend(h['central_cost'])
-                all_costs.extend(h['greedy_cost'])
-            plt.hist(all_costs, bins=30, density=True, alpha=0.7)
+                central_costs.extend(h['central_cost'])
+                matching_costs.extend(h['greedy_cost'])
+
+            # Troviamo min e max su TUTTI i costi
+            all_costs = central_costs + matching_costs
+            min_cost = min(all_costs)
+            max_cost = max(all_costs)
+
+            # Istogramma Centralized
+            plt.hist(central_costs,
+                     bins=30,
+                     range=(min_cost, max_cost),
+                     density=True,
+                     alpha=0.6,
+                     label='Centralized')
+
+            # Istogramma Matching (se ci sono dati)
+            if matching_costs:
+                plt.hist(matching_costs,
+                         bins=30,
+                         range=(min_cost, max_cost),
+                         density=True,
+                         alpha=0.6,
+                         label='Matching')
+
+            # Impostiamo esplicitamente i limiti dell'asse X
+            plt.xlim(min_cost, max_cost)
+
             plt.title(f"Distribuzione costi – {regime}, matching={'ON' if do_matching else 'OFF'}")
             plt.xlabel('Costo')
             plt.ylabel('PDF')
+            plt.legend()
             plt.grid(True)
-
 
 
     # stampa riepilogo finale (sull’ultima modalità/regime)
@@ -74,19 +105,26 @@ def main():
     print(f"Riallocazioni:{last['total_relocations']}")
 
     # Andamento numero di app attive nel tempo (per ciascuna epoca)
-    plt.figure()
-    for idx, h in enumerate(histories):
-        # h['ne']      = lista di eventi cumulati ad ogni epoca
-        # h['num_apps']= # di app attive a fine epoca
-        plt.plot(h['ne'], h['num_apps'],
-                 marker='.',
-                 label=f'ne = {ne_values[idx]}')
-    plt.title(f"Applicazioni attive nel tempo – {regime}, matching={'ON' if do_matching else 'OFF'}")
-    plt.xlabel('Eventi cumulati')
-    plt.ylabel('Numero di applicazioni attive')
-    plt.legend(ncol=2, fontsize='small')
-    plt.grid(True)
+    # GRAFICO “numero di app attive vs eventi” SOLO PER l’ULTIMA SIMULAZIONE
+    h_last = histories[-1]
 
+    x = np.array(h_last['ne'])
+    y = np.array(h_last['num_apps'])
+
+    # calcolo quanti epoch = un marker ogni 120 eventi
+    # ne è il passo di eventi per epoca
+    step = max(1, 3000 // ne)
+
+    # seleziono solo quegli epoch
+    x_sel = x[::step]
+    y_sel = y[::step]
+
+    plt.figure()
+    plt.plot(x_sel, y_sel, marker='o', linestyle='-')
+    plt.title(f"App attive vs eventi (1 marker ogni 3000 eventi) – ne={ne}")
+    plt.xlabel("Eventi cumulati")
+    plt.ylabel("App attive")
+    plt.grid(True)
     # mostra le 12 figure (2 regimi × 2 modalità × 3 grafici) + 1 riepilogo app
     plt.show()
 

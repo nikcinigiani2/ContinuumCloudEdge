@@ -60,7 +60,7 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
     capacity_per_edge = [containers * r for r in service_rate_edge]
 
     # orizzonte di eventi e numero epoche
-    timeHorizon  = math.ceil(2*(lam_appl + mu_appl) / p) * ne
+    timeHorizon  = math.ceil(5*(lam_appl + mu_appl) / p) * ne
     total_epochs = math.ceil(timeHorizon / ne)
     print(f">>> Simulazione: timeHorizon={timeHorizon}, ne={ne} ⇒ epoche={total_epochs}")
 
