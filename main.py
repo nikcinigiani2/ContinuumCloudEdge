@@ -7,6 +7,9 @@ import numpy as np
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
 
+#TODO: aggiungi swapping matching, ricontrolla picchi costo, ricontrolla matchingON-OFF
+
+
 def main():
     regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
@@ -27,7 +30,7 @@ def main():
                 )
                 histories.append(h)
                 print(f"  ne={ne}  → centralized={h['central_cost'][-1]:.1f}  greedy={h['greedy_cost'][-1]:.1f}")
-
+            """
             # 1) ne vs numero di riallocazioni
             plt.figure()
             plt.plot(ne_values,
@@ -37,7 +40,7 @@ def main():
             plt.xlabel('ne (eventi per epoca)')
             plt.ylabel('Numero riallocazioni')
             plt.grid(True)
-
+            """
             # 2) ne vs costo finale (centralized + matching)
             plt.figure()
             plt.plot(ne_values,
@@ -51,7 +54,7 @@ def main():
             plt.ylabel('Costo')
             plt.legend()
             plt.grid(True)
-
+            """
             # 3) istogramma distribuzione costi (tutte le epoche, entrambi)
             plt.figure()
 
@@ -93,7 +96,7 @@ def main():
             plt.ylabel('PDF')
             plt.legend()
             plt.grid(True)
-
+            """
 
     # stampa riepilogo finale (sull’ultima modalità/regime)
     last = histories[-1]
