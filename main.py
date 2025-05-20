@@ -3,134 +3,97 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 from dataGenerator import generate_data
 from simulation import run_simulation_event_based
-
-#TODO: aggiungi swapping matching, ricontrolla picchi costo, ricontrolla matchingON-OFF
-
 
 def main():
     regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
-    modes     = [False, True]    # False = matching OFF, True = matching ON
 
     for regime in regimes:
-        for do_matching in modes:
-            histories = []
-            print(f"\n=== Regime={regime}, matching={'ON' if do_matching else 'OFF'} ===")
-            for ne in ne_values:
-                # per riproducibilità: stessa semina Rand? (opzionale)
-                init_data = generate_data()
-                h = run_simulation_event_based(
-                    init_data,
-                    ne,
-                    regime,
-                    do_greedy=do_matching
-                )
-                histories.append(h)
-                print(f"  ne={ne}  → centralized={h['central_cost'][-1]:.1f}  greedy={h['greedy_cost'][-1]:.1f}")
-            """
-            # 1) ne vs numero di riallocazioni
-            plt.figure()
-            plt.plot(ne_values,
-                     [h['relocations'][-1] for h in histories],
-                     marker='o', label='Riallocazioni')
-            plt.title(f"Riallocazioni vs ne – {regime}, matching={'ON' if do_matching else 'OFF'}")
-            plt.xlabel('ne (eventi per epoca)')
-            plt.ylabel('Numero riallocazioni')
-            plt.grid(True)
-            """
-            # 2) ne vs costo finale (centralized + matching)
-            plt.figure()
-            plt.plot(ne_values,
-                     [h['central_cost'][-1] for h in histories],
-                     marker='o', label='Centralized')
-            plt.plot(ne_values,
-                     [h['greedy_cost'][-1] for h in histories],
-                     marker='x', label='Matching')
-            plt.title(f"Costo finale vs ne – {regime}, matching={'ON' if do_matching else 'OFF'}")
-            plt.xlabel('ne (eventi per epoca)')
-            plt.ylabel('Costo')
-            plt.legend()
-            plt.grid(True)
-            """
-            # 3) istogramma distribuzione costi (tutte le epoche, entrambi)
-            plt.figure()
+        # raccolgo risultati per ciascun ne
+        cen_costs    = []  # costo finale centralizzato
+        gs_costs     = []  # costo finale greedy static
+        gd_costs     = []  # costo finale greedy dynamic
+        avg_cen      = []  # costo medio per epoca centralizzato
+        avg_gs       = []  # costo medio per epoca greedy static
+        avg_gd       = []  # costo medio per epoca greedy dynamic
+        rel_c        = []  # riallocazioni centralizzato
+        rel_gs       = []  # riallocazioni greedy static
+        rel_gd       = []  # riallocazioni greedy dynamic
+        hist_c       = []  # tutti i costi centralizzati
+        hist_gd      = []  # tutti i costi dynamic
 
-            # Separiamo le due liste di costi
-            central_costs = []
-            matching_costs = []
+        print(f"\n=== Regime: {regime} ===")
+        for ne in ne_values:
+            init_data = generate_data()
 
-            for h in histories:
-                central_costs.extend(h['central_cost'])
-                matching_costs.extend(h['greedy_cost'])
+            # run matching OFF (static)
+            h_off = run_simulation_event_based(init_data, ne, regime, do_greedy=False)
+            # run matching ON (dynamic)
+            h_on  = run_simulation_event_based(init_data, ne, regime, do_greedy=True)
 
-            # Troviamo min e max su TUTTI i costi
-            all_costs = central_costs + matching_costs
-            min_cost = min(all_costs)
-            max_cost = max(all_costs)
+            # 1) costi finali
+            cen_costs.append( h_off['central_cost'][-1] )
+            gs_costs .append( h_off['greedy_cost'][-1]  )
+            gd_costs .append( h_on ['greedy_cost'][-1]  )
 
-            # Istogramma Centralized
-            plt.hist(central_costs,
-                     bins=30,
-                     range=(min_cost, max_cost),
-                     density=True,
-                     alpha=0.6,
-                     label='Centralized')
+            # 2) costo medio per epoca
+            avg_cen.append( np.mean(h_off['central_cost']) )
+            avg_gs .append( np.mean(h_off['greedy_cost'])  )
+            avg_gd .append( np.mean(h_on ['greedy_cost'])  )
 
-            # Istogramma Matching (se ci sono dati)
-            if matching_costs:
-                plt.hist(matching_costs,
-                         bins=30,
-                         range=(min_cost, max_cost),
-                         density=True,
-                         alpha=0.6,
-                         label='Matching')
+            # 3) riallocazioni finali
+            rel_c .append( h_off['relocations'][-1] )
+            rel_gs.append( h_off['relocations_greedy'][-1] )
+            rel_gd.append( h_on ['relocations_greedy'][-1] )
 
-            # Impostiamo esplicitamente i limiti dell'asse X
-            plt.xlim(min_cost, max_cost)
+            # 4) accumulo per istogramma
+            hist_c .extend(h_off['central_cost'])
+            hist_gd.extend(h_on ['greedy_cost'])
 
-            plt.title(f"Distribuzione costi – {regime}, matching={'ON' if do_matching else 'OFF'}")
-            plt.xlabel('Costo')
-            plt.ylabel('PDF')
-            plt.legend()
-            plt.grid(True)
-            """
+            print(f"ne={ne:3d} → cen={cen_costs[-1]:6.1f}  "
+                  f"gs={gs_costs[-1]:6.1f}  gd={gd_costs[-1]:6.1f}  "
+                  f"relocC={rel_c[-1]:3d}  relocGS={rel_gs[-1]:3d}  relocGD={rel_gd[-1]:3d}")
 
-    # stampa riepilogo finale (sull’ultima modalità/regime)
-    last = histories[-1]
-    print("\n--- Totali simulazione ---")
-    print(f"Nascite:      {last['total_births']}")
-    print(f"Morti:        {last['total_deaths']}")
-    print(f"Migrazioni:   {last['total_migrations']}")
-    print(f"Riallocazioni:{last['total_relocations']}")
+        # — Grafico 1: costo medio per epoca vs ne —
+        plt.figure()
+        plt.plot(ne_values, avg_cen, 'o-', label='Centralized (avg/epoca)')
+        plt.plot(ne_values, avg_gs,  'x--', label='Greedy static (avg/epoca)')
+        plt.plot(ne_values, avg_gd,  's-.', label='Greedy dynamic (avg/epoca)')
+        plt.title(f"Costo medio per epoca vs ne – {regime}")
+        plt.xlabel('ne (eventi per epoca)')
+        plt.ylabel('Costo medio per epoca')
+        plt.legend()
+        plt.grid(True)
 
-    # Andamento numero di app attive nel tempo (per ciascuna epoca)
-    # GRAFICO “numero di app attive vs eventi” SOLO PER l’ULTIMA SIMULAZIONE
-    h_last = histories[-1]
+        # — Grafico 2: ne vs numero di riallocazioni —
+        plt.figure()
+        plt.plot(ne_values, rel_c,  'o-', label='Centralized')
+        plt.plot(ne_values, rel_gs, 'x--', label='Greedy static')
+        plt.plot(ne_values, rel_gd, 's-.', label='Greedy dynamic')
+        plt.title(f"Riallocazioni vs ne – {regime}")
+        plt.xlabel('ne (eventi per epoca)')
+        plt.ylabel('Numero riallocazioni')
+        plt.legend()
+        plt.grid(True)
 
-    x = np.array(h_last['ne'])
-    y = np.array(h_last['num_apps'])
+        # — Grafico 3: istogramma probabilità costi totali —
+        plt.figure()
+        mn, mx = min(hist_c + hist_gd), max(hist_c + hist_gd)
+        bins = 30
+        plt.hist(hist_c,  bins=bins, range=(mn, mx),
+                 density=True, alpha=0.6, label='Centralized')
+        plt.hist(hist_gd, bins=bins, range=(mn, mx),
+                 density=True, alpha=0.6, label='Greedy dynamic')
+        plt.title(f"Distribuzione costi totali – {regime}")
+        plt.xlabel('Costo totale')
+        plt.ylabel('PDF')
+        plt.xlim(mn, mx)
+        plt.legend()
+        plt.grid(True)
 
-    # calcolo quanti epoch = un marker ogni 3000 eventi
-    # ne è il passo di eventi per epoca
-    step = max(1, 3000 // ne)
-
-    # seleziono solo quegli epoch
-    x_sel = x[::step]
-    y_sel = y[::step]
-
-    plt.figure()
-    plt.plot(x_sel, y_sel, marker='o', linestyle='-')
-    plt.title(f"App attive vs eventi (1 marker ogni 3000 eventi) – ne={ne}")
-    plt.xlabel("Eventi cumulati")
-    plt.ylabel("App attive")
-    plt.grid(True)
-    # mostra le 12 figure (2 regimi × 2 modalità × 3 grafici) + 1 riepilogo app
     plt.show()
-
-
 
 if __name__ == '__main__':
     main()
