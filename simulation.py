@@ -76,7 +76,8 @@ def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
     capacity_per_edge = [containers * r for r in service_rate_edge]
 
     # calcolo orizzonte e epoche
-    timeHorizon  = math.ceil(5*(lam_appl + mu_appl)/p) * ne
+    #timeHorizon  = math.ceil(5*(lam_appl + mu_appl)/p) * ne
+    timeHorizon = 30000
     total_epochs = math.ceil(timeHorizon / ne)
     print(f">>> Simulazione: timeHorizon={timeHorizon}, ne={ne} ⇒ epoche={total_epochs}")
     print(f">>> regime stazionario → q={(p*(1+lam_appl+mu_appl)/(lam_appl+mu_appl)):.4f}, r={(nm*p):.4f}")
