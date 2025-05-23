@@ -55,15 +55,15 @@ def handle_death(idx, app_cost, totAppl, partsC, partsG, mu_appl):
         if idx < mu_appl:
             mu_appl -= 1
     return mu_appl
-
+"""
 def run_simulation_event_based(init_data, ne, regime, do_greedy=False):
-    """
+    
     Esegue la simulazione evento-based.
     init_data: dict da generate_data()
     ne: numero di eventi per epoca
     regime: 'scarsità' (5 container) o 'abbondanza' (10 container)
     do_greedy: se True ricalcola matching ogni epoca, altrimenti lo mantiene fisso
-    """
+    
     # --- inizializzazione stato ---
     app_cost          = [row.tolist() for row in init_data['app_cost']]
     totAppl           = list(init_data['totAppl'])
@@ -237,3 +237,4 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+"""
