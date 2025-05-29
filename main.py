@@ -8,10 +8,12 @@ from scenario          import generate_scenario, replay_scenario
 
 #TODO: ricontrolla costo matching statico =0
 
-def compute_time_horizon(init_data):
+"""def compute_time_horizon(init_data):
     lam = len(init_data['totAppl']) - init_data['mu_appl']
-    # esempio di formula, adatta a quello che usi
     return math.ceil(5 * (lam + init_data['mu_appl']) / 0.05) * 100
+"""
+timeHorizon =3000
+TH = timeHorizon
 
 def main():
     regimes   = ['scarsità', 'abbondanza']
@@ -20,7 +22,7 @@ def main():
     for regime in regimes:
         # 1) Genero lo scenario *una sola volta* per questo regime
         base_init = generate_data()
-        TH        = compute_time_horizon(base_init)
+        #TH        = compute_time_horizon(base_init)
         init_data, events = generate_scenario(TH, base_init)
 
         # 2) Per ogni ne faccio il replay sullo stesso scenario e raccolgo le medie
