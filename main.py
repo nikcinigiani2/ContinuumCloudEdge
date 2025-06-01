@@ -12,11 +12,12 @@ from scenario          import generate_scenario, replay_scenario
     lam = len(init_data['totAppl']) - init_data['mu_appl']
     return math.ceil(5 * (lam + init_data['mu_appl']) / 0.05) * 100
 """
-timeHorizon =3000
+timeHorizon =300000
 TH = timeHorizon
 
 def main():
-    regimes   = ['scarsità', 'abbondanza']
+    regimes   = ['abbondanza'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
+    #dunque i grafici venivano diversi ma solo perché generate_data era dentro il for di regime in regimes
     ne_values = list(range(10, 101, 10))
 
     for regime in regimes:
