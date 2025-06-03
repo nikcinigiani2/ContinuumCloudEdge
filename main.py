@@ -5,43 +5,66 @@ import matplotlib.pyplot as plt
 
 from dataGenerator     import generate_data
 from scenario          import generate_scenario, replay_scenario
-
-#TODO: ricontrolla costo matching statico =0
-
-"""def compute_time_horizon(init_data):
-    lam = len(init_data['totAppl']) - init_data['mu_appl']
-    return math.ceil(5 * (lam + init_data['mu_appl']) / 0.05) * 100
-"""
-timeHorizon =300000
-TH = timeHorizon
+from simulation        import p  # probabilità base di nascita pura
 
 def main():
-    regimes   = ['abbondanza'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
+    regimes   = ['scarsità','abbondanza'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
     #dunque i grafici venivano diversi ma solo perché generate_data era dentro il for di regime in regimes
     ne_values = list(range(10, 101, 10))
 
-    for regime in regimes:
-        # 1) Genero lo scenario *una sola volta* per questo regime
-        base_init = generate_data()
-        #TH        = compute_time_horizon(base_init)
-        init_data, events = generate_scenario(TH, base_init)
+    # 1) Genero lo stato iniziale
+    base_init = generate_data()
 
-        # 2) Per ogni ne faccio il replay sullo stesso scenario e raccolgo le medie
+    # Calcolo lam e mu da base_init
+    mu = base_init['mu_appl']
+    lam = len(base_init['totAppl']) - mu
+
+    # Imposto ec (numero di slot per epoca)
+    ec = 100
+
+    # 2) Calcolo timeHorizon secondo la formula: ceil((5*(lam+mu)/p)) * ec
+    timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
+
+    # 3) Genero lo scenario usando il timeHorizon calcolato
+    init_data, events = generate_scenario(timeHorizon, base_init)
+
+
+
+    for regime in regimes:
+
+        # 4) Per ogni ne eseguo il replay e raccolgo i risultati
         mc, mgs, mgd = [], [], []
+        relC_list, relD_list = [], []
+
         for ne in ne_values:
-            mean_c, mean_gs, mean_gd = replay_scenario(init_data, events, regime, ne)
+            mean_c, mean_gs, mean_gd, reloc_c, reloc_d = replay_scenario(
+                init_data, events, regime, ne
+            )
             mc.append(mean_c)
             mgs.append(mean_gs)
             mgd.append(mean_gd)
 
-        # 3) Grafico comparativo
-        plt.figure()
+            relC_list.append(reloc_c)
+            relD_list.append(reloc_d)
+
+        # 5a) Grafico dei costi medi
+        plt.figure(figsize=(10, 5))
         plt.plot(ne_values, mc,  'o-', label='Centralized')
         plt.plot(ne_values, mgs, 'x--', label='Greedy static')
         plt.plot(ne_values, mgd, 's-.', label='Greedy dynamic')
         plt.xlabel('ne (eventi tra ricalcolo)')
         plt.ylabel('Costo medio totale')
         plt.title(f"Costo medio vs ne – {regime}")
+        plt.legend()
+        plt.grid(True)
+
+        # 5b) Grafico delle rilocazioni cumulative
+        plt.figure(figsize=(10, 5))
+        plt.plot(ne_values, relC_list, 'o-', label='Rilocazioni Centralized')
+        plt.plot(ne_values, relD_list, 's--', label='Rilocazioni Dynamic')
+        plt.xlabel('ne (eventi tra ricalcolo)')
+        plt.ylabel('Numero totale di rilocazioni')
+        plt.title(f"Rilocazioni cumulative vs ne – {regime}")
         plt.legend()
         plt.grid(True)
 

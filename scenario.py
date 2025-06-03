@@ -61,12 +61,12 @@ def generate_scenario(timeHorizon, base_init):
 
 def replay_scenario(init_data, events, regime, ne):
     """
-    Riapplica gli eventi su init_data e calcola i costi medi per:
-      - centralized
-      - greedy static (on‐the‐fly + global ogni ne)
-      - greedy dynamic modificato (on‐the‐fly + global ogni ne)
-    In questa versione, il matching dinamico alloca subito ogni nuova app al nodo
-    col costo unitario minore, anziché lasciarla disallocata fino al prossimo ricalcolo.
+    Riapplica gli eventi su init_data e calcola:
+      - costo medio Centralized, Greedy Static e Greedy Dynamic modificato
+      - numero di rilocazioni (reallocazioni di righe) al ricalcolo Centralized
+      - numero di rilocazioni al ricalcolo Dynamic
+
+    Restituisce: (mean_c, mean_gs, mean_gd, total_reloc_centralized, total_reloc_dynamic)
     """
     # --- 1) stato iniziale ---
     app_cost = [r.tolist() for r in init_data['app_cost']]
@@ -76,17 +76,17 @@ def replay_scenario(init_data, events, regime, ne):
     mu_appl  = init_data['mu_appl']
 
     # capacità per regime
-    containers = 5 if regime == 'scarsità' else 10
+    containers = 5 if regime == 'scarsità' else 15
     cap_edge   = [containers * r for r in service_rate_edge]
 
     # --- 2) partizioni iniziali ---
-    # centralized
+    # Centralized
     c_cost, _, partsC = centralized_allocate(
         app_cost, totAppl, cap_edge, service_rate_edge, num_edge, mu_appl
     )
     partsC = [list(r) for r in partsC]
 
-    # greedy static
+    # Greedy Static
     _, partsG_static, _ = greedy_allocate(
         app_cost, totAppl,
         cap_edge.copy(), service_rate_edge,
@@ -94,7 +94,7 @@ def replay_scenario(init_data, events, regime, ne):
     )
     partsG_static = [list(r) for r in partsG_static]
 
-    # greedy dynamic modificato
+    # Greedy Dynamic modificato
     _, partsG_dynamic, _ = greedy_allocate(
         app_cost, totAppl,
         cap_edge.copy(), service_rate_edge,
@@ -110,11 +110,15 @@ def replay_scenario(init_data, events, regime, ne):
     sum_c = sum_gs = sum_gd = 0.0
     event_count = 0
     ciclo = 0
-    num_cols = num_edge + 1  # numero di colonne = num_edge + 1 (l'ultima = cloud)
+    num_cols = num_edge + 1  # num_edge edge + 1 colonna cloud
+
+    # Lista dove accumulo le rilocazioni ad ogni ricalcolo
+    total_reloc_centralized = 0
+    total_reloc_dynamic    = 0
 
     # --- 4) ciclo sugli eventi ---
     for ev, info in events:
-        # Stampo inizio di ogni ciclo (ogni ne eventi)
+        # Debug di inizio ciclo
         if event_count % ne == 0:
             ciclo += 1
             print(f"[DEBUG]  Inizio ciclo {ciclo}: evento {event_count}/{T}", flush=True)
@@ -122,96 +126,93 @@ def replay_scenario(init_data, events, regime, ne):
         # 4.1) applica evento su tutte le strutture
         if ev == 'death':
             idx = info
-            # rimuove da app_cost e totAppl e decrementa mu_appl se necessario
             mu_appl = handle_death(
                 idx, app_cost, totAppl,
                 partsC, partsG_dynamic,
                 mu_appl
             )
-            # rimuove anche da partsG_static
+            # Rimuovo la stessa riga in partsG_static se esiste
             if 0 <= idx < len(partsG_static):
                 del partsG_static[idx]
 
         elif ev == 'birth_lambda':
-            # genera dati per la nuova λ-app e inserisce riga zero in partsC e partsG_dynamic
+            # Nuova λ-app: handle_birth_lambda aggiorna app_cost, totAppl, partsC e partsG_dynamic (riga zero)
             handle_birth_lambda(app_cost, totAppl, partsC, partsG_dynamic)
 
-            # --- GREEDY STATIC: assegno subito la nuova λ-app ---
-            costs = app_cost[-1]          # vettore costi (length = num_cols)
-            q = totAppl[-1]               # domanda della nuova λ-app
+            # --- Greedy Static: assegno subito la new λ-app
+            q = totAppl[-1]
+            costs = app_cost[-1]
             j_min = min(range(num_cols), key=lambda j: costs[j])
             row_static = [0] * num_cols
             row_static[j_min] = q
             partsG_static.append(row_static)
 
-            # --- GREEDY DYNAMIC MODIFICATO: assegno subito la nuova λ-app ---
-            partsG_dynamic.pop()  # tolgo la riga di zeri
+            # --- Greedy Dynamic modificato: tolgo la riga zero e la riassegno subito ---
+            partsG_dynamic.pop()  # rimuovo la riga di zeri
             row_dynamic = [0] * num_cols
             row_dynamic[j_min] = q
             partsG_dynamic.append(row_dynamic)
 
         elif ev == 'birth_mu':
-            # genera dati per la nuova μ-app e inserisce riga zero in partsC e partsG_dynamic
             handle_birth_mu(app_cost, totAppl, partsC, partsG_dynamic)
             mu_appl += 1
 
-            # --- GREEDY STATIC: assegno subito la nuova μ-app ---
-            costs = app_cost[-1]        # costi unitari della nuova μ-app
-            j_min = min(range(num_cols), key=lambda j: costs[j])
+            # --- Greedy Static: assegno subito la new μ-app
+            costs = app_cost[-1]
+            j_min = min(range(num_cols), key=lambda j: costs)
             row_static = [0] * num_cols
             row_static[j_min] = 1
             partsG_static.append(row_static)
 
-            # --- GREEDY DYNAMIC MODIFICATO: assegno subito la nuova μ-app ---
-            partsG_dynamic.pop()  # tolgo la riga di zeri
+            # --- Greedy Dynamic modificato: tolgo la riga zero e la riassegno subito ---
+            partsG_dynamic.pop()
             row_dynamic = [0] * num_cols
             row_dynamic[j_min] = 1
             partsG_dynamic.append(row_dynamic)
 
         elif ev == 'migration':
             idx = info
-            # rimuovo la vecchia app
+            # Rimuovo la vecchia app
             mu_appl = handle_death(
                 idx, app_cost, totAppl,
                 partsC, partsG_dynamic,
                 mu_appl
             )
-            # rimuovo anche da partsG_static
             if 0 <= idx < len(partsG_static):
                 del partsG_static[idx]
 
-            # inverse birth: ricreo nuova app (λ o μ)
+            # Inverse birth: ricreo come λ o μ
             if idx < (len(totAppl) - mu_appl):
-                # era una λ-app → diventa nuova μ-app
+                # diventava λ → ora new μ
                 handle_birth_mu(app_cost, totAppl, partsC, partsG_dynamic)
                 mu_appl += 1
 
-                # GREEDY STATIC: assegno subito la nuova μ-app
+                # Greedy Static: assegno subito la new μ
                 costs = app_cost[-1]
                 j_min = min(range(num_cols), key=lambda j: costs)
                 row_static = [0] * num_cols
                 row_static[j_min] = 1
                 partsG_static.append(row_static)
 
-                # GREEDY DYNAMIC MODIFICATO: assegno subito la nuova μ-app
+                # Greedy Dynamic: tolgo riga zero e assegno subito
                 partsG_dynamic.pop()
                 row_dynamic = [0] * num_cols
                 row_dynamic[j_min] = 1
                 partsG_dynamic.append(row_dynamic)
 
             else:
-                # era una μ-app → diventa nuova λ-app
+                # diventava μ → ora new λ
                 handle_birth_lambda(app_cost, totAppl, partsC, partsG_dynamic)
 
-                # GREEDY STATIC: assegno subito la nuova λ-app
-                costs = app_cost[-1]
+                # Greedy Static: assegno subito la new λ
                 q = totAppl[-1]
+                costs = app_cost[-1]
                 j_min = min(range(num_cols), key=lambda j: costs)
                 row_static = [0] * num_cols
                 row_static[j_min] = q
                 partsG_static.append(row_static)
 
-                # GREEDY DYNAMIC MODIFICATO: assegno subito la nuova λ-app
+                # Greedy Dynamic: tolgo riga zero e assegno subito
                 partsG_dynamic.pop()
                 row_dynamic = [0] * num_cols
                 row_dynamic[j_min] = q
@@ -219,7 +220,10 @@ def replay_scenario(init_data, events, regime, ne):
 
         # 4.2) ricalcolo globale ogni ne eventi
         if event_count % ne == 0:
-            # centralized
+            # ── Centralized ──
+            # salvo copia precedente di partsC per contare le rilocazioni
+            oldC = [row.copy() for row in partsC]
+
             c_cost, _, partsC = centralized_allocate(
                 app_cost, totAppl,
                 cap_edge, service_rate_edge,
@@ -227,7 +231,11 @@ def replay_scenario(init_data, events, regime, ne):
             )
             partsC = [list(r) for r in partsC]
 
-            # greedy static (ricalcola tutto da zero)
+            # conto quante righe cambiano tra oldC e new partsC
+            relocC = sum(1 for i in range(len(partsC)) if oldC[i] != partsC[i])
+            total_reloc_centralized += relocC
+
+            # ── Greedy Static ──
             _, partsG_static, _ = greedy_allocate(
                 app_cost, totAppl,
                 cap_edge.copy(), service_rate_edge,
@@ -235,13 +243,20 @@ def replay_scenario(init_data, events, regime, ne):
             )
             partsG_static = [list(r) for r in partsG_static]
 
-            # greedy dynamic globale (ricalcola tutto da zero)
+            # ── Greedy Dynamic globale ──
+            # salvo copia precedente di partsG_dynamic per contare le rilocazioni
+            oldG = [row.copy() for row in partsG_dynamic]
+
             _, partsG_dynamic, _ = greedy_allocate(
                 app_cost, totAppl,
                 cap_edge.copy(), service_rate_edge,
                 num_edge, mu_appl
             )
             partsG_dynamic = [list(r) for r in partsG_dynamic]
+
+            # conto quante righe cambiano tra oldG e new partsG_dynamic
+            relocG = sum(1 for i in range(len(partsG_dynamic)) if oldG[i] != partsG_dynamic[i])
+            total_reloc_dynamic += relocG
 
         # 4.3) accumulo costi correnti (dopo eventuale ricalcolo)
         sum_c  += recompute_central_cost(app_cost, partsC)
@@ -250,5 +265,9 @@ def replay_scenario(init_data, events, regime, ne):
 
         event_count += 1
 
-    # restituisco le tre medie dei costi
-    return sum_c / T, sum_gs / T, sum_gd / T
+    # restituisco anche i conteggi di rilocazioni
+    return (sum_c / T,
+            sum_gs / T,
+            sum_gd / T,
+            total_reloc_centralized,
+            total_reloc_dynamic)
