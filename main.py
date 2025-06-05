@@ -20,7 +20,7 @@ def main():
     lam = len(base_init['totAppl']) - mu
 
     # Imposto ec (numero di slot per epoca)
-    ec = 100
+    ec = 10
 
     # 2) Calcolo timeHorizon secondo la formula: ceil((5*(lam+mu)/p)) * ec
     timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
@@ -64,7 +64,7 @@ def main():
         plt.plot(ne_values, relD_list, 's--', label='Rilocazioni Dynamic')
         plt.xlabel('ne (eventi tra ricalcolo)')
         plt.ylabel('Numero totale di rilocazioni')
-        plt.title(f"Rilocazioni cumulative vs ne – {regime}")
+        plt.title(f"Riallocazioni vs ne – {regime}")
         plt.legend()
         plt.grid(True)
 

@@ -91,3 +91,4 @@ print(f"  - λ‑apps cost:     {cost_lambda}")
 print(f"Costo totale MATCHING: {costoM}")
 print(f"Costo totale CENTRALIZED: {totalC}")
 #container domande
+print(f"matrice dei costi: {app_cost}")

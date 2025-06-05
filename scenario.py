@@ -60,16 +60,7 @@ def generate_scenario(timeHorizon, base_init):
     return deepcopy(base_init), events
 
 def replay_scenario(init_data, events, regime, ne):
-    """
-    Riapplica gli eventi su init_data e calcola:
-      - costo medio Centralized
-      - costo medio Greedy Static senza ricalcoli globali
-      - costo medio Greedy Dynamic modificato (con ricalcoli ogni ne eventi)
-      - numero di rilocazioni Centralized e Dynamic
 
-    In questa versione, Greedy Static fa un solo ricalcolo iniziale con greedy_allocate
-    e poi aggiorna le nuove app “on-the-fly” senza mai ricalcolare globalmente.
-    """
     # --- 1) stato iniziale ---
     app_cost = [r.tolist() for r in init_data['app_cost']]
     totAppl  = list(init_data['totAppl'])
@@ -149,7 +140,7 @@ def replay_scenario(init_data, events, regime, ne):
             row_static[j_min] = q
             partsG_static.append(row_static)
 
-            # Dynamic modificato: tolgo la riga zero e assegno subito
+            # Dynamic : tolgo la riga zero e assegno subito
             partsG_dynamic.pop()
             row_dynamic = [0] * num_cols
             row_dynamic[j_min] = q
