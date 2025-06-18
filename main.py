@@ -4,11 +4,10 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 from dataGenerator     import generate_data
-from scenario          import generate_scenario, replay_scenario
-from simulation        import p  # probabilità base di nascita pura
+from scenario          import generate_scenario, replay_scenario, p , nm
 
 def main():
-    regimes   = ['scarsità','abbondanza'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
+    regimes   = ['scarsità', 'abbondanza'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
     #dunque i grafici venivano diversi ma solo perché generate_data era dentro il for di regime in regimes
     ne_values = list(range(10, 101, 10))
 
@@ -20,13 +19,13 @@ def main():
     lam = len(base_init['totAppl']) - mu
 
     # Imposto ec (numero di slot per epoca)
-    ec = 100
+    ec = 1
 
     # 2) Calcolo timeHorizon secondo la formula: ceil((5*(lam+mu)/p)) * ec
     timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
 
     # 3) Genero lo scenario usando il timeHorizon calcolato
-    init_data, events = generate_scenario(timeHorizon, base_init)
+    init_data, events = generate_scenario(timeHorizon, base_init,p,nm)
 
 
 
@@ -64,7 +63,7 @@ def main():
         plt.plot(ne_values, relD_list, 's--', label='Rilocazioni Dynamic')
         plt.xlabel('ne (eventi tra ricalcolo)')
         plt.ylabel('Numero totale di rilocazioni')
-        plt.title(f"Rilocazioni cumulative vs ne – {regime}")
+        plt.title(f"Riallocazioni vs ne – {regime}")
         plt.legend()
         plt.grid(True)
 
