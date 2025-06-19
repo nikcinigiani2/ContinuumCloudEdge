@@ -176,18 +176,19 @@ def replay_scenario(init_data, events, regime, ne):
     T = len(events)
     sum_c = sum_gs = sum_gd = 0.0
     event_count = 0
+    cycle_count = 0
     total_reloc_centralized = 0
     total_reloc_dynamic = 0
 
     # --- 4) Ciclo sugli eventi ---
     for event in events:
         ev = event[0]
-        # Inizio nuovo ciclo di ne eventi
-        if event_count % ne == 0:
-            pass  # eventuale debug
+
 
         # --- 4.1) Gestione evento ---
         if ev == 'death':
+            event_count += 1
+
             idx = event[1]
             # Centralized & Dynamic
             mu_appl = handle_death(idx, app_cost, totAppl, partsC, partsG_dynamic, mu_appl)
@@ -199,6 +200,8 @@ def replay_scenario(init_data, events, regime, ne):
                 del partsG_static[idx]
 
         elif ev == 'birth_lambda':
+            event_count += 1
+
             d = event[1]
             # Centralized & Dynamic: aggiungo riga zero
             handle_birth_lambda(app_cost, totAppl, partsC, partsG_dynamic, d)
@@ -222,6 +225,8 @@ def replay_scenario(init_data, events, regime, ne):
             partsG_dynamic.append(row_dyn)
 
         elif ev == 'birth_mu':
+            event_count += 1
+
             d = event[1]
             handle_birth_mu(app_cost, totAppl, partsC, partsG_dynamic, d)
             mu_appl += 1
@@ -242,6 +247,8 @@ def replay_scenario(init_data, events, regime, ne):
             partsG_dynamic.append(row_dyn)
 
         elif ev == 'migration':
+            event_count += 1
+
             idx, new_type, d = event[1], event[2], event[3]
             # Rimuovo vecchia app
             mu_appl = handle_death(idx, app_cost, totAppl, partsC, partsG_dynamic, mu_appl)
@@ -288,28 +295,43 @@ def replay_scenario(init_data, events, regime, ne):
                 row_dyn[j_min_d] = q
                 partsG_dynamic.append(row_dyn)
 
+
+
         # --- 4.2) Ricalcoli globali ogni ne eventi ---
-        if event_count % ne == 0:
-            oldC = [row.copy() for row in partsC]
-            c_cost, _, partsC = centralized_allocate(
-                app_cost, totAppl, cap_edge, service_rate_edge, num_edge, mu_appl
-            )
-            partsC = [list(r) for r in partsC]
-            total_reloc_centralized += sum(1 for i in range(len(partsC)) if oldC[i] != partsC[i])
 
-            oldG = [row.copy() for row in partsG_dynamic]
-            _, partsG_dynamic, _ = greedy_allocate(
-                app_cost, totAppl, cap_edge.copy(), service_rate_edge, num_edge, mu_appl
-            )
-            partsG_dynamic = [list(r) for r in partsG_dynamic]
-            total_reloc_dynamic += sum(1 for i in range(len(partsG_dynamic)) if oldG[i] != partsG_dynamic[i])
 
+            # quando raggiungo ne eventi, si completa un ciclo:
+            if event_count % ne == 0:
+                cycle_count += 1
+
+                # — ricalcolo centralizzato —
+                oldC = [row.copy() for row in partsC]
+                c_cost, _, partsC = centralized_allocate(
+                    app_cost, totAppl, cap_edge, service_rate_edge, num_edge, mu_appl
+                )
+                partsC = [list(r) for r in partsC]
+                total_reloc_centralized += sum(
+                    1
+                    for i in range(len(partsC))
+                    if oldC[i] != partsC[i]
+                )
+
+                # — ricalcolo greedy dinamico —
+                oldG = [row.copy() for row in partsG_dynamic]
+                _, partsG_dynamic, _ = greedy_allocate(
+                    app_cost, totAppl, cap_edge.copy(), service_rate_edge, num_edge, mu_appl
+                )
+                partsG_dynamic = [list(r) for r in partsG_dynamic]
+                total_reloc_dynamic += sum(
+                    1
+                    for i in range(len(partsG_dynamic))
+                    if oldG[i] != partsG_dynamic[i]
+                )
         # --- 4.3) Accumulo costi ---
         sum_c  += recompute_central_cost(app_cost, partsC)
         sum_gs += recompute_central_cost(app_cost, partsG_static)
         sum_gd += recompute_central_cost(app_cost, partsG_dynamic)
 
-        event_count += 1
 
     return (
         sum_c / T,

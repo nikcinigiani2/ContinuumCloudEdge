@@ -50,7 +50,7 @@ def main():
         plt.figure(figsize=(10, 5))
         plt.plot(ne_values, mc,  'o-', label='Centralized')
         plt.plot(ne_values, mgs, 'x--', label='Greedy static')
-        plt.plot(ne_values, mgd, 's-.', label='Greedy dynamic')
+        #plt.plot(ne_values, mgd, 's-.', label='Greedy dynamic')
         plt.xlabel('ne (eventi tra ricalcolo)')
         plt.ylabel('Costo medio totale')
         plt.title(f"Costo medio vs ne – {regime}")
