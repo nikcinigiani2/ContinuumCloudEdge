@@ -1,73 +1,69 @@
+# main.py
 import math
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from dataGenerator     import generate_data
-from scenario          import generate_scenario, replay_scenario, p , nm
+from dataGenerator import generate_data
+from scenario import generate_scenario, p, nm
+from centralizedScenario import run_centralized
+from matchingStaticoScenario import run_matchingStatic
+from matchingDinamicoScenario import run_matchingDynamic
+from copy import deepcopy
 
 def main():
-    regimes   = ['scarsità'] #ho rimosso momentaneamente scarsità perche non avevo definito la differenza dei due regimi
-    #dunque i grafici venivano diversi ma solo perché generate_data era dentro il for di regime in regimes
+    regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
 
-    # 1) Genero lo stato iniziale
     base_init = generate_data()
+    lam = len(base_init['totAppl']) - base_init['mu_appl']
+    mu  = base_init['mu_appl']
 
-    # Calcolo lam e mu da base_init
-    mu = base_init['mu_appl']
-    lam = len(base_init['totAppl']) - mu
-
-    # Imposto ec (numero di slot per epoca)
-    ec = 10
-
-    # 2) Calcolo timeHorizon secondo la formula: ceil((5*(lam+mu)/p)) * ec
+    ec = 100
     timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
 
-    # 3) Genero lo scenario usando il timeHorizon calcolato
-    init_data, events = generate_scenario(timeHorizon, base_init,p,nm)
-
-
+    # genero scenario (init_data invariato) e lista eventi
+    init_data, events = generate_scenario(timeHorizon, base_init, p, nm)
 
     for regime in regimes:
-
-        # 4) Per ogni ne eseguo il replay e raccolgo i risultati
-        mc, mgs = [], []
-        #mgd = []  # Greedy dinamico, se necessario
-        relC_list = []
-        #relD_list = []  # Rilocazioni dinamiche, se necessario
+        mc, ms, md = [], [], []
+        relC, relS, relD = [], [], []
 
         for ne in ne_values:
-            mean_c, mean_gs, mean_gd, reloc_c, reloc_d = replay_scenario(
-                init_data, events, regime, ne
-            )
-            mc.append(mean_c)
-            mgs.append(mean_gs)
-            #mgd.append(mean_gd)
+            # centralized
+            sd_init, sd_events = deepcopy(init_data), deepcopy(events)
+            mc_i, relC_i, effC, cycC = run_centralized(sd_init, sd_events, regime, ne)
+            mc.append(mc_i); relC.append(relC_i)
 
-            relC_list.append(reloc_c)
-            #relD_list.append(reloc_d)
+            # statico
+            ss_init, ss_events = deepcopy(init_data), deepcopy(events)
+            ms_i, relS_i, effS, cycS = run_matchingStatic(ss_init, ss_events, regime, ne)
+            ms.append(ms_i); relS.append(relS_i)
 
-        # 5a) Grafico dei costi medi
-        plt.figure(figsize=(10, 5))
+            # dinamico
+            sd2_init, sd2_events = deepcopy(init_data), deepcopy(events)
+            md_i, relD_i, effD, cycD = run_matchingDynamic(sd2_init, sd2_events, regime, ne)
+            md.append(md_i); relD.append(relD_i)
+
+        # plot costi
+        plt.figure(figsize=(10,5))
         plt.plot(ne_values, mc,  'o-', label='Centralized')
-        plt.plot(ne_values, mgs, 'x--', label='Matching static')
-        #plt.plot(ne_values, mgd, 's-.', label='Greedy dynamic')
-        plt.xlabel('ne (eventi tra ricalcolo)')
-        plt.ylabel('Costo medio totale')
+        plt.plot(ne_values, ms, 's--', label='Matching Statico')
+        plt.plot(ne_values, md, 'd-.', label='Matching Dinamico')
+        plt.xlabel('ne')
+        plt.ylabel('Costo medio')
         plt.title(f"Costo medio vs ne – {regime}")
-        plt.legend()
-        plt.grid(True)
+        plt.legend(); plt.grid(True)
 
-        # 5b) Grafico delle rilocazioni cumulative
-        plt.figure(figsize=(10, 5))
-        plt.plot(ne_values, relC_list, 'o-', label='Rilocazioni Centralized')
-        #plt.plot(ne_values, relD_list, 's--', label='Rilocazioni Dynamic')
-        plt.xlabel('ne (eventi tra ricalcolo)')
+        # plot rilocazioni
+        plt.figure(figsize=(10,5))
+        plt.plot(ne_values, relC,  'o-', label='Rilocazioni Centralized')
+        plt.plot(ne_values, relS, 's--', label='Rilocazioni Statico')
+        plt.plot(ne_values, relD, 'd-.', label='Rilocazioni Dinamico')
+        plt.xlabel('ne')
         plt.ylabel('Numero totale di rilocazioni')
-        plt.title(f"Riallocazioni vs ne – {regime}")
-        plt.legend()
-        plt.grid(True)
+        plt.title(f"Rilocazioni vs ne – {regime}")
+        plt.legend(); plt.grid(True)
 
     plt.show()
 
