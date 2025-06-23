@@ -11,6 +11,10 @@ from matchingStaticoScenario import run_matchingStatic
 from matchingDinamicoScenario import run_matchingDynamic
 from copy import deepcopy
 
+#TODO: controlla timeHorizon, ora è hardcoded a 3000 per testare velocemente; ricontrolla come mediare e valori abbondanza/scarsità
+
+
+
 def main():
     regimes   = ['scarsità', 'abbondanza']
     ne_values = list(range(10, 101, 10))
@@ -19,8 +23,9 @@ def main():
     lam = len(base_init['totAppl']) - base_init['mu_appl']
     mu  = base_init['mu_appl']
 
-    ec = 100
-    timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
+    ec = 10
+    #timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
+    timeHorizon = 3000  # per testare velocemente
 
     # genero scenario (init_data invariato) e lista eventi
     init_data, events = generate_scenario(timeHorizon, base_init, p, nm)

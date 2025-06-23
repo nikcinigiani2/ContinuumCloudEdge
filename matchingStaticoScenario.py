@@ -14,7 +14,7 @@ def run_matchingStatic(init_data, events, regime, ne):
     num_edge          = init_data['num_edge']
     mu_appl           = init_data['mu_appl']
 
-    containers = 5 if regime == 'scarsità' else 10
+    containers = 5 if regime == 'scarsità' else 15
     cap_edge   = [containers * r for r in service_rate_edge]
 
     # slot 0: allocazione iniziale greedy
@@ -105,5 +105,5 @@ def run_matchingStatic(init_data, events, regime, ne):
         )
         sum_cost += slot_cost
 
-    mean_cost = sum_cost / (len(events) + 1)
+    mean_cost = sum_cost / 3000
     return mean_cost, 0, effective_events, cycle_count

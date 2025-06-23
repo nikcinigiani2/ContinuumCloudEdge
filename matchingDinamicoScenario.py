@@ -12,7 +12,7 @@ def run_matchingDynamic(init_data, events, regime, ne):
     num_edge          = init_data['num_edge']
     mu_appl           = init_data['mu_appl']
 
-    containers = 5 if regime == 'scarsità' else 10
+    containers = 5 if regime == 'scarsità' else 15
     full_cap   = [containers * r for r in service_rate_edge]
 
     sum_cost         = 0.0
@@ -130,5 +130,5 @@ def run_matchingDynamic(init_data, events, regime, ne):
             cycle_count += 1
             cycle_events = 0
 
-    mean_cost = sum_cost / (len(events) + 1)
+    mean_cost = sum_cost / 3000
     return mean_cost, total_reloc, effective_events, cycle_count
