@@ -5,7 +5,6 @@ from dataGenerator import generate_data
 from allocation import centralized_allocate, greedy_allocate
 
 
-
 from dataGenerator import generate_data
 
 # Parametri fissi
@@ -303,6 +302,7 @@ def replay_scenario(init_data, events, regime, ne):
             # quando raggiungo ne eventi, si completa un ciclo:
             if event_count % ne == 0:
                 cycle_count += 1
+                print(f"Debug: Inizio ciclo {cycle_count}")
 
                 # — ricalcolo centralizzato —
                 oldC = [row.copy() for row in partsC]
@@ -334,8 +334,8 @@ def replay_scenario(init_data, events, regime, ne):
 
 
     return (
-        sum_c / T,
-        sum_gs / T,
+        sum_c / 30000,
+        sum_gs / 30000,
         sum_gd / T,
         total_reloc_centralized,
         total_reloc_dynamic
