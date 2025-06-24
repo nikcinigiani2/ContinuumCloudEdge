@@ -11,7 +11,6 @@ from matchingStaticoScenario import run_matchingStatic
 from matchingDinamicoScenario import run_matchingDynamic
 from copy import deepcopy
 
-#TODO: controlla timeHorizon, ora è hardcoded a 3000 per testare velocemente; ricontrolla come mediare e valori abbondanza/scarsità
 
 
 
@@ -25,7 +24,7 @@ def main():
 
     ec = 10
     #timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
-    timeHorizon = 3000  # per testare velocemente
+    timeHorizon = 30000  # per testare velocemente
 
     # genero scenario (init_data invariato) e lista eventi
     init_data, events = generate_scenario(timeHorizon, base_init, p, nm)

@@ -12,7 +12,7 @@ def run_matchingDynamic(init_data, events, regime, ne):
     num_edge          = init_data['num_edge']
     mu_appl           = init_data['mu_appl']
 
-    containers = 5 if regime == 'scarsità' else 15
+    containers = 5 if regime == 'scarsità' else 10
     full_cap   = [containers * r for r in service_rate_edge]
 
     sum_cost         = 0.0
@@ -43,8 +43,7 @@ def run_matchingDynamic(init_data, events, regime, ne):
 
     # processa eventi
     for typ, *args in events:
-        # stampiamo ogni inizio cycle per il dinamico
-        print(f"Cycle Dynamic {cycle_count} - Event: {typ}")
+
         is_eff = typ in ('death','birth_lambda','birth_mu','migration')
         if is_eff:
             effective_events += 1
@@ -110,6 +109,8 @@ def run_matchingDynamic(init_data, events, regime, ne):
 
         # ricalcolo globale ogni ne eventi effettivi
         if cycle_events == ne:
+            print(f"Ricalcolo Matching Dinamico al ciclo {cycle_count} con ne={ne}")
+
             _, parts_r, _ = greedy_allocate(
                 app_cost, totAppl, full_cap.copy(),
                 service_rate_edge, num_edge, mu_appl
@@ -130,5 +131,5 @@ def run_matchingDynamic(init_data, events, regime, ne):
             cycle_count += 1
             cycle_events = 0
 
-    mean_cost = sum_cost / 3000
+    mean_cost = sum_cost / 30000
     return mean_cost, total_reloc, effective_events, cycle_count

@@ -10,10 +10,15 @@ nm = 6     # numero di nodi edge (per il tasso di migrazione)
 
 def generate_scenario(timeHorizon, base_init, p, nm):
     """
-    Genera uno scenario: lista di eventi (‘death’, ‘birth_lambda’, ‘birth_mu’, ‘migration’).
-    Ritorna init_data (uguale a base_init) e events.
+    Genera uno scenario per ogni slot fino a timeHorizon, includendo anche i no-op:
+    - timeHorizon: numero di slot totali
+    - base_init: stato iniziale (da generate_data)
+    - p, nm: parametri di probabilità per eventi
+    Restituisce (init_data, events) dove events è una lista di lunghezza timeHorizon
+    e ogni tupla è ('death', idx), ('birth_lambda', d), ('birth_mu', d),
+    ('migration', idx, new_type, d) o ('noop',).
     """
-    # copi localmente solo per tenere traccia dello stato e generare eventi
+    # Copia dello stato per calcolare le probabilità
     app_cost = [r.tolist() for r in base_init['app_cost']]
     totAppl  = list(base_init['totAppl'])
     mu_appl  = base_init['mu_appl']
@@ -30,7 +35,7 @@ def generate_scenario(timeHorizon, base_init, p, nm):
             # morte
             idx = random.randrange(N)
             events.append(('death', idx))
-            # aggiorno solo il clone
+            # aggiorno stato clone
             del app_cost[idx]
             del totAppl[idx]
             if idx < mu_appl:
@@ -41,33 +46,32 @@ def generate_scenario(timeHorizon, base_init, p, nm):
             d = generate_data()
             if x2 < 0.5:
                 events.append(('birth_lambda', d))
-                app_cost.append(d['app_cost'][-1].tolist())
-                totAppl.append(int(d['totAppl'][-1]))
             else:
                 events.append(('birth_mu', d))
-                app_cost.append(d['app_cost'][-1].tolist())
-                totAppl.append(int(d['totAppl'][-1]))
                 mu_appl += 1
-
-        elif x1 < qi + p + ri and N > 0:
-            # migrazione
-            idx = random.randrange(N)
-            d = generate_data()
-            if x2 < (lam_appl / (lam_appl + mu_appl) if (lam_appl + mu_appl) > 0 else 0):
-                new_type = 'lambda'
-            else:
-                new_type = 'mu'
-                mu_appl += 1
-            events.append(('migration', idx, new_type, d))
-            # aggiorno clone: rimozione e aggiunta app
-            del app_cost[idx]
-            del totAppl[idx]
             app_cost.append(d['app_cost'][-1].tolist())
             totAppl.append(int(d['totAppl'][-1]))
 
-        else:
-            # nessun evento in questo slot
-            pass
+        elif x1 < qi + p + ri and N > 0:
+            # migrazione (death + birth)
+            idx = random.randrange(N)
+            new_d = generate_data()
+            # decidi tipo nuovo
+            prob_mu = lam_appl / (lam_appl + mu_appl) if (lam_appl + mu_appl) > 0 else 0
+            new_type = 'mu' if x2 >= prob_mu else 'lambda'
+            events.append(('migration', idx, new_type, new_d))
+            # aggiorno clone
+            del app_cost[idx]
+            del totAppl[idx]
+            if idx < mu_appl:
+                mu_appl -= 1
+            app_cost.append(new_d['app_cost'][-1].tolist())
+            totAppl.append(int(new_d['totAppl'][-1]))
+            if new_type == 'mu':
+                mu_appl += 1
 
-    # scenario identico per tutti gli algoritmi
+        else:
+            # no-op: nessun evento in questo slot
+            events.append(('noop',))
+
     return base_init, events

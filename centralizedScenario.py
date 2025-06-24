@@ -12,7 +12,7 @@ def run_centralized(init_data, events, regime, ne):
     num_edge          = init_data['num_edge']
     mu_appl           = init_data['mu_appl']
 
-    containers   = 5 if regime == 'scarsità' else 15
+    containers   = 5 if regime == 'scarsità' else 10
     full_cap     = [containers * r for r in service_rate_edge]
 
     sum_cost        = 0.0
@@ -32,8 +32,7 @@ def run_centralized(init_data, events, regime, ne):
 
     # --- elaborazione eventi ---
     for typ, *args in events:
-        #stampiamo ogni inizio cycle per il centralized
-        print(f"Cycle Centralized {cycle_count} - Event: {typ}")
+
 
         is_eff = typ in ('death','birth_lambda','birth_mu','migration')
         if is_eff:
@@ -91,6 +90,8 @@ def run_centralized(init_data, events, regime, ne):
 
         # 3) Ricalcolo globale ogni ne eventi effettivi
         if cycle_events == ne:
+            # stampa valore di ne e numero inizio ciclo
+            print(f"Ricalcolo Centralized al ciclo {cycle_count} con ne={ne}")
             cost_r, _, parts_r = centralized_allocate(
                 app_cost, totAppl, full_cap.copy(),
                 service_rate_edge, num_edge, mu_appl
@@ -108,5 +109,7 @@ def run_centralized(init_data, events, regime, ne):
             cycle_events = 0
 
     # includiamo lo slot 0 nel denominatore
-    mean_cost = sum_cost / 3000
+    mean_cost = sum_cost / 30000
+    #stampa valore timeHorizon e numero eventi effettivi
+
     return mean_cost, total_reloc, effective_events, cycle_count
