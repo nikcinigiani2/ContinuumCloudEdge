@@ -25,7 +25,7 @@ def main():
     # Calcolo del timeHorizon
     ec = 1
    # timeHorizon = math.ceil((5 * (lam + mu) / p)) * ec
-    timeHorizon = 1000  # Impostazione fissa per il timeHorizon
+    timeHorizon = 30000  # Impostazione fissa per il timeHorizon
 
     # Generazione dello scenario con no-op inclusi
     init_data, events = generate_scenario(timeHorizon, base_init, p, nm)
@@ -107,7 +107,7 @@ def main():
         plt.hist(costsCV_slots, bins=30, density=True, alpha=0.5, label='MU-Variante')
         plt.xlabel('Costo per slot')
         plt.ylabel('Densità di probabilità')
-        plt.title(f"Distribuzione costi per slot (ne={target_ne}) – {regime}")
+        plt.title(f"Distribuzione costi Centralized per slot (ne={target_ne}) – {regime}")
         plt.legend()
         plt.grid(True)
 
@@ -116,7 +116,7 @@ def main():
         plt.hist(costsD_slots, bins=30, density=True, alpha=0.5, label='Dinamico')
         plt.xlabel('Costo per slot')
         plt.ylabel('Densità di probabilità')
-        plt.title(f"Distribuzione costi per slot (ne={target_ne}) – {regime}")
+        plt.title(f"Distribuzione costi Matching per slot (ne={target_ne}) – {regime}")
         plt.legend()
         plt.grid(True)
 

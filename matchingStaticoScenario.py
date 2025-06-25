@@ -44,5 +44,5 @@ def run_matchingStatic(init_data, events, regime, ne):
             total_reloc+=sum(1 for i in range(min(len(old),len(last_parts))) if old[i]!=last_parts[i])
         sc=sum(last_parts[i][j]*app_cost[i][j] for i in range(len(last_parts)) for j in range(len(last_parts[i])))
         cost_per_slot.append(sc)
-    mean_cost=sum(cost_per_slot)/len(cost_per_slot)
+    mean_cost=sum(cost_per_slot)/30000
     return mean_cost, 0, effective_events, cycle_count, cost_per_slot

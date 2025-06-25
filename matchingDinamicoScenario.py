@@ -54,5 +54,6 @@ def run_matchingDynamic(init_data, events, regime, ne):
                 for j in range(num_edge): cap_edge[j]-=row[j]
             cost_per_slot[-1]+=cr
             cycle_count+=1; cycle_events=0
-    mean_cost=sum(cost_per_slot)/len(cost_per_slot)
+            print(f'Dynamic cycle {cycle_count}')
+    mean_cost=sum(cost_per_slot)/30000
     return mean_cost, total_reloc, effective_events, cycle_count, cost_per_slot

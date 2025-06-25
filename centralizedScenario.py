@@ -53,6 +53,8 @@ def run_centralized(init_data, events, regime, ne):
         if typ in ('death','birth_lambda','birth_mu','migration'):
             effective_events+=1; cycle_events+=1
             if cycle_events==ne:
+               #stampa inizio ciclo centralized
+                print(f'Centralized cycle {cycle_count}' )
                 cr, _, pr = centralized_allocate(app_cost, totAppl, full_cap.copy(), service_rate_edge, num_edge, mu_appl)
                 reloc = sum(1 for i in range(len(pr)) if pr[i].tolist()!=last_parts[i])
                 total_reloc+=reloc
@@ -60,5 +62,5 @@ def run_centralized(init_data, events, regime, ne):
                 cost_per_slot[-1]+=cr
                 cycle_count+=1; cycle_events=0
 
-    mean_cost = sum(cost_per_slot)/len(cost_per_slot)
+    mean_cost = sum(cost_per_slot)/30000
     return mean_cost, total_reloc, effective_events, cycle_count, cost_per_slot
