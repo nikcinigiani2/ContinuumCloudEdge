@@ -54,7 +54,7 @@ def run_centralized(init_data, events, regime, ne):
             effective_events+=1; cycle_events+=1
             if cycle_events==ne:
                #stampa inizio ciclo centralized
-                print(f'Centralized cycle {cycle_count}' )
+                #print(f'Centralized cycle {cycle_count}' )
                 cr, _, pr = centralized_allocate(app_cost, totAppl, full_cap.copy(), service_rate_edge, num_edge, mu_appl)
                 reloc = sum(1 for i in range(len(pr)) if pr[i].tolist()!=last_parts[i])
                 total_reloc+=reloc
