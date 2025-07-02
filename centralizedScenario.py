@@ -22,6 +22,9 @@ def run_centralized(init_data, events, regime, ne):
     cost_per_slot.append(c0)
     cycle_count = 1
 
+
+
+
     # simulate
     for typ, *args in events:
         # apply event
